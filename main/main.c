@@ -18,7 +18,7 @@ void RealizaHTTPRequest(void * params)
     if(xSemaphoreTake(conexaoWifiSemaphore, portMAX_DELAY))
     {
       ESP_LOGI("Main Task", "Realiza HTTP Request");
-      ipstack("177.64.249.226");
+      get_weather_data();
     }
   }
 }
@@ -36,5 +36,5 @@ void app_main(void)
     conexaoWifiSemaphore = xSemaphoreCreateBinary();
     wifi_start();
 
-    xTaskCreate(&RealizaHTTPRequest,  "Processa HTTP", 4096, NULL, 1, NULL);   
+    xTaskCreate(&RealizaHTTPRequest,  "Processa HTTP", 4096, NULL, 2, NULL);
 }

@@ -12,7 +12,7 @@
 
 char response_string[800];
 int lenght_response = 0;
-extern TaskHandle_t receptorHandler;
+extern TaskHandle_t ledTaskHandler;
 
 char to_hex(char code) {
   static char hex[] = "0123456789abcdef";
@@ -145,7 +145,7 @@ void get_weather_data()
     response_string[0] = '\0';
     lenght_response = 0;
 
-    xTaskNotify(receptorHandler, 3, eSetValueWithOverwrite);
+    xTaskNotify(ledTaskHandler, 3, eSetValueWithOverwrite);
     http_request(url_ipstack);
 
     cJSON *json_ipstack = cJSON_Parse(response_string);
@@ -155,7 +155,7 @@ void get_weather_data()
     lenght_response = 0;
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-    xTaskNotify(receptorHandler, 3, eSetValueWithOverwrite);
+    xTaskNotify(ledTaskHandler, 3, eSetValueWithOverwrite);
     http_request(url_openweather_map);
 
     cJSON *json_openweather = cJSON_Parse(response_string);

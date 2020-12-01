@@ -85,13 +85,12 @@ void http_request(char * url)
     esp_http_client_cleanup(client);
 }
 
-char * get_ipstack_url(char * ip_address)
+char * get_ipstack_url()
 {
     char * url_ipstack = malloc(100*sizeof(char));
     sprintf(
         url_ipstack,
-        "http://api.ipstack.com/%s?access_key=%s",
-        ip_address,
+        "http://api.ipstack.com/check?access_key=%s",
         IPSTACK_KEY
     );
     return url_ipstack;
@@ -141,7 +140,7 @@ void show_weather_data(cJSON * json_openweather){
 
 void get_weather_data()
 {
-    char * url_ipstack = get_ipstack_url("177.64.249.226");
+    char * url_ipstack = get_ipstack_url();
 
     response_string[0] = '\0';
     lenght_response = 0;

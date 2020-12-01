@@ -10,8 +10,6 @@
 #include "request.h"
 #include "led.h"
 
-#define LED 2
-
 xSemaphoreHandle conexaoWifiSemaphore;
 TaskHandle_t ledTaskHandler = NULL;
 
@@ -21,7 +19,7 @@ void RealizaHTTPRequest(void * params)
   {
     while(true)
     {
-      vTaskDelay(2e4 / portTICK_PERIOD_MS);
+      vTaskDelay(3e5 / portTICK_PERIOD_MS);
       ESP_LOGI("Main Task", "Realiza HTTP Request");
       get_weather_data();
     }

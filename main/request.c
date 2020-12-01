@@ -10,27 +10,19 @@
 #define IPSTACK_KEY CONFIG_IPSTACK_KEY
 #define OPEN_WEATHER_KEY CONFIG_OPENWEATHERMAP
 
-char response_ipstack[700];
-char response_openweather[800];
-int lenght_response_weather = 0;
+char response_string[800];
+int lenght_response = 0;
+extern TaskHandle_t receptorHandler;
 
-/* Converts a hex character to its integer value */
-char from_hex(char ch) {
-  return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
-}
-
-/* Converts an integer value to its hex character*/
 char to_hex(char code) {
   static char hex[] = "0123456789abcdef";
   return hex[code & 15];
 }
 
-/* Returns a url-encoded version of str */
-/* IMPORTANT: be sure to free() the returned string after use */
 char *url_encode(char *str) {
   char *pstr = str, *buf = malloc(strlen(str) * 3 + 1), *pbuf = buf;
   while (*pstr) {
-    if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')//api.ipstack.com/177.64.249.226?access_key=4d29dde5797395db55f887f49b07ed61
+    if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')
       *pbuf++ = *pstr;
     else if (*pstr == ' ')
       *pbuf++ = '+';
@@ -61,15 +53,10 @@ esp_err_t _http_event_handle(esp_http_client_event_t *evt)
         case HTTP_EVENT_ON_DATA:
             ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
 
-            if (!esp_http_client_is_chunked_response(evt->client))
-            {
-                strcat(response_openweather, (char *)evt->data);
-                lenght_response_weather += evt->data_len;
-                response_openweather[lenght_response_weather] = '\0';
-            } else
-            {
-                strcat(response_ipstack, (char *)evt->data);
-            }
+            strcat(response_string, (char *)evt->data);
+            lenght_response += evt->data_len;
+            response_string[lenght_response] = '\0';
+
  
             break;
         case HTTP_EVENT_ON_FINISH:
@@ -110,6 +97,12 @@ char * get_ipstack_url(char * ip_address)
     return url_ipstack;
 }
 
+void print_json(cJSON * json)
+{
+    char *string = cJSON_Print(json);
+    printf("%s\n", string);
+}
+
 char * get_openweathermap_url(cJSON * json)
 {
     const cJSON *country_code = NULL;
@@ -125,27 +118,48 @@ char * get_openweathermap_url(cJSON * json)
         url_openweather_map,
         "http://api.openweathermap.org/data/2.5/weather?q=%s,%s,%s&units=metric&appid=%s",
         url_encode(city->valuestring),
-        url_encode(region_code->valuestring),
-        url_encode(country_code->valuestring),
+        region_code->valuestring,
+        country_code->valuestring,
         OPEN_WEATHER_KEY
     );
     return url_openweather_map;
 }
 
+void show_weather_data(cJSON * json_openweather){
+    cJSON *main_info = cJSON_GetObjectItemCaseSensitive(json_openweather, "main");
+    cJSON *current_temperature = cJSON_DetachItemFromObjectCaseSensitive(main_info, "temp");
+    cJSON *minimum_temperature = cJSON_DetachItemFromObjectCaseSensitive(main_info, "temp_min");
+    cJSON *maximum_temperature = cJSON_DetachItemFromObjectCaseSensitive(main_info, "temp_max");
+    cJSON *humidity = cJSON_DetachItemFromObjectCaseSensitive(main_info, "humidity");
+
+    printf("Temperatura Máxima: %.2lf | Temperatura Mínima: %.2lf | Temperatura Atual: %.2lf | Umidade: %.2lf %%\n",
+           maximum_temperature->valuedouble,
+           current_temperature->valuedouble,
+           minimum_temperature->valuedouble,
+           humidity->valuedouble);
+}
+
 void get_weather_data()
 {
     char * url_ipstack = get_ipstack_url("177.64.249.226");
+
+    response_string[0] = '\0';
+    lenght_response = 0;
+
+    xTaskNotify(receptorHandler, 3, eSetValueWithOverwrite);
     http_request(url_ipstack);
 
-    cJSON *json_ipstack = cJSON_Parse(response_ipstack);
-
+    cJSON *json_ipstack = cJSON_Parse(response_string);
     char * url_openweather_map = get_openweathermap_url(json_ipstack);
 
-    memset(response_ipstack, 0, 700);
+    response_string[0] = '\0';
+    lenght_response = 0;
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
+    xTaskNotify(receptorHandler, 3, eSetValueWithOverwrite);
     http_request(url_openweather_map);
-    cJSON *json_openweather = cJSON_Parse(response_openweather);
 
-    char * string = cJSON_Print(json_openweather);
-    printf("%s\n", string);
+    cJSON *json_openweather = cJSON_Parse(response_string);
+
+    show_weather_data(json_openweather);
 }
